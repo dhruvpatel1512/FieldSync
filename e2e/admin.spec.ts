@@ -24,6 +24,10 @@ test('analyst resolves a sync conflict from the admin dashboard', async ({ page,
   await page.getByRole('button', { name: 'Sign in' }).click();
   await expect(page).toHaveURL(/\/admin$/);
   await expect(page.getByRole('link', { name: 'Capture' })).toHaveCount(0);
+  // Analysts review but can't change data: no add / edit / delete controls
+  await expect(page.getByRole('heading', { name: 'All findings' })).toBeVisible();
+  await expect(page.getByRole('button', { name: '+ Add finding' })).toHaveCount(0);
+  await expect(page.getByRole('button', { name: 'Delete' })).toHaveCount(0);
 
   const card = page.getByTestId('conflict').filter({ hasText: base.id.slice(0, 8) });
   // Only depth differs: server kept device B's 20, device A wants 30 (retries until the analyst's pull has landed)
@@ -41,9 +45,9 @@ test('analyst resolves a sync conflict from the admin dashboard', async ({ page,
   await expect(page).not.toHaveURL(/\/admin$/);
 });
 
-// Scenario: the analyst adds, edits and deletes a finding from the dashboard; each change syncs to the server.
-test('analyst adds, edits and deletes a finding from the dashboard', async ({ page, request }) => {
-  const { token } = await (await request.post(`${API}/auth/login`, { data: { username: 'analyst1', password: 'Office@123' } })).json();
+// Scenario: the admin adds, edits and deletes a finding from the dashboard; each change syncs to the server.
+test('admin adds, edits and deletes a finding from the dashboard', async ({ page, request }) => {
+  const { token } = await (await request.post(`${API}/auth/login`, { data: { username: 'admin1', password: 'Admin@123' } })).json();
   const onServer = async (notes: string) => {
     const { findings } = await (await request.get(`${API}/sync/pull?since=0`, { headers: { Authorization: `Bearer ${token}` } })).json();
     return findings.find((f: any) => f.notes === notes);
@@ -51,8 +55,8 @@ test('analyst adds, edits and deletes a finding from the dashboard', async ({ pa
   const notes = `e2e admin ${Date.now()}`;
 
   await page.goto('/login');
-  await page.getByLabel('Username').fill('analyst1');
-  await page.getByLabel('Password').fill('Office@123');
+  await page.getByLabel('Username').fill('admin1');
+  await page.getByLabel('Password').fill('Admin@123');
   await page.getByRole('button', { name: 'Sign in' }).click();
   await expect(page).toHaveURL(/\/admin$/);
 

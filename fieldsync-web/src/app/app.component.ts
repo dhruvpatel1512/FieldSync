@@ -13,7 +13,7 @@ import { AuthService } from './core/auth.service';
       <strong>FieldSync</strong>
       @if (auth.user(); as u) {
         <nav>
-          @if (u.role === 'Analyst') { <a routerLink="/admin" routerLinkActive="active">Dashboard</a> }
+          @if (u.role !== 'Engineer') { <a routerLink="/admin" routerLinkActive="active">Dashboard</a> }
           @else { <a routerLink="/" routerLinkActive="active" [routerLinkActiveOptions]="{ exact: true }">Capture</a> }
           <a routerLink="/findings" routerLinkActive="active">Findings</a>
         </nav>

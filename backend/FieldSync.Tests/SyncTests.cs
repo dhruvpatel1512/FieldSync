@@ -158,23 +158,23 @@ public class SyncTests : IClassFixture<ApiFactory>
     }
 
     [Fact]
-    public async Task Analyst_can_edit_and_delete_a_finding_and_the_capturer_is_kept()
+    public async Task Admin_can_edit_and_delete_a_finding_and_the_capturer_is_kept()
     {
         var f = NewFinding(22.8001, 72.8001);
         var v1 = (await Push(_engineer, "device-A", f)).Results.Single().ServerVersion;
 
-        var analyst = _factory.ClientAs("Analyst", "Office Analyst");
+        var admin = _factory.ClientAs("Admin", "Office Admin");
         var edit = Clone(f); edit.DepthM = 99; edit.BaseServerVersion = v1; edit.ClientUpdatedAt = DateTimeOffset.UtcNow.AddSeconds(1);
-        var v2 = (await Push(analyst, "office-pc", edit)).Results.Single();
+        var v2 = (await Push(admin, "office-pc", edit)).Results.Single();
         Assert.Equal("accepted", v2.Status);
 
         var del = Clone(edit); del.IsDeleted = true; del.BaseServerVersion = v2.ServerVersion; del.ClientUpdatedAt = DateTimeOffset.UtcNow.AddSeconds(2);
-        Assert.Equal("accepted", (await Push(analyst, "office-pc", del)).Results.Single().Status);
+        Assert.Equal("accepted", (await Push(admin, "office-pc", del)).Results.Single().Status);
 
         var saved = (await Pull(0)).Findings.Single(x => x.Id == f.Id);   // deletions sync too, as a tombstone
         Assert.True(saved.IsDeleted);
         Assert.Equal(99, saved.DepthM);
-        Assert.Equal("Field Engineer 1", saved.EngineerName);             // not overwritten by the analyst
+        Assert.Equal("Field Engineer 1", saved.EngineerName);             // not overwritten by the admin
     }
 
     [Theory]
@@ -186,11 +186,17 @@ public class SyncTests : IClassFixture<ApiFactory>
         Assert.Equal(HttpStatusCode.BadRequest, res.StatusCode);
     }
 
-    [Fact]
-    public async Task Engineers_cannot_review_conflicts()
+    [Theory]
+    [InlineData("Engineer", "GET", "/api/conflicts", HttpStatusCode.Forbidden)]   // engineers don't review
+    [InlineData("Analyst", "POST", "/api/sync/push", HttpStatusCode.Forbidden)]   // analysts review but can't change data
+    [InlineData("Admin", "GET", "/api/conflicts", HttpStatusCode.OK)]             // admins can do both
+    public async Task Each_role_only_reaches_its_own_endpoints(string role, string method, string url, HttpStatusCode expected)
     {
-        var res = await _engineer.GetAsync("/api/conflicts");
-        Assert.Equal(HttpStatusCode.Forbidden, res.StatusCode);
+        var client = _factory.ClientAs(role);
+        var res = method == "GET"
+            ? await client.GetAsync(url)
+            : await client.PostAsJsonAsync(url, new PushRequest { DeviceId = "x", Findings = [NewFinding(22.81, 72.81)] }, Json);
+        Assert.Equal(expected, res.StatusCode);
     }
 
     private static FindingDto Clone(FindingDto f) =>

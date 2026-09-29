@@ -40,7 +40,7 @@ function fromPayload(json: string): Partial<Finding> {
   };
 }
 
-/** Office view for Analysts. Stats come from the local DB (the analyst's device pulls every finding); conflicts need network. */
+/** Office view for Analysts (review) and Admins (review + add / edit / delete). Stats come from the local DB (the analyst's device pulls every finding); conflicts need network. */
 @Component({
   selector: 'app-admin',
   standalone: true,
@@ -101,7 +101,9 @@ function fromPayload(json: string): Partial<Finding> {
     </section>
 
     <section class="card">
-      <h3>Manage findings <button class="small-btn" (click)="startAdd()" [disabled]="editing() !== null">+ Add finding</button></h3>
+      <h3>{{ canEdit() ? 'Manage findings' : 'All findings' }}
+        @if (canEdit()) { <button class="small-btn" (click)="startAdd()" [disabled]="editing() !== null">+ Add finding</button> }
+      </h3>
       @if (editing(); as id) {
         <form #form="ngForm" class="edit" (ngSubmit)="save(id)">
           <h4>{{ id === 'new' ? 'Add finding' : 'Edit finding' }}</h4>
@@ -135,7 +137,7 @@ function fromPayload(json: string): Partial<Finding> {
         </form>
       }
       <table>
-        <thead><tr><th>Captured</th><th>Expedition</th><th>Location</th><th>Material</th><th>Depth</th><th>Indicator</th><th>Engineer</th><th>Status</th><th></th></tr></thead>
+        <thead><tr><th>Captured</th><th>Expedition</th><th>Location</th><th>Material</th><th>Depth</th><th>Indicator</th><th>Engineer</th><th>Status</th>@if (canEdit()) { <th></th> }</tr></thead>
         <tbody>
           @for (f of all(); track f.id) {
             <tr data-testid="manage-row">
@@ -148,10 +150,12 @@ function fromPayload(json: string): Partial<Finding> {
                 <span class="badge {{ f.syncStatus }}">{{ f.syncStatus }}</span>
                 @for (e of f.syncErrors ?? []; track e) { <div class="error small">{{ e }}</div> }
               </td>
-              <td class="actions">
-                <button class="small-btn secondary" (click)="startEdit(f)" [disabled]="editing() !== null">Edit</button>
-                <button class="small-btn danger" (click)="remove(f)">Delete</button>
-              </td>
+              @if (canEdit()) {
+                <td class="actions">
+                  <button class="small-btn secondary" (click)="startEdit(f)" [disabled]="editing() !== null">Edit</button>
+                  <button class="small-btn danger" (click)="remove(f)">Delete</button>
+                </td>
+              }
             </tr>
           } @empty {
             <tr><td colspan="9" class="muted">No findings yet.</td></tr>
@@ -183,6 +187,7 @@ export class AdminComponent implements OnInit {
   private sync = inject(SyncService);
   private auth = inject(AuthService);
   readonly fields = FIELDS;
+  readonly canEdit = computed(() => this.auth.user()?.role === 'Admin');   // the API enforces this too
 
   private readonly findings = toSignal(
     from(liveQuery(() => db.findings.filter(f => !f.isDeleted).toArray())), { initialValue: [] as Finding[] });

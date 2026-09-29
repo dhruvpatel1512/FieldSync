@@ -6,7 +6,7 @@ import { API_BASE } from './config';
 interface LoginResponse { token: string; displayName: string; role: string; expiresAt: string; }
 
 /** Each role's landing page after sign-in. */
-export const homeFor = (role?: string) => (role === 'Analyst' ? '/admin' : '/');
+export const homeFor = (role?: string) => (role === 'Analyst' || role === 'Admin' ? '/admin' : '/');
 
 const TOKEN_KEY = 'fs_token';
 const USER_KEY = 'fs_user';

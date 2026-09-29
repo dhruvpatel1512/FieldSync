@@ -10,18 +10,18 @@ const signedIn: CanActivateFn = () =>
   inject(AuthService).token ? true : inject(Router).parseUrl('/login');
 
 /** Signed in AND the right role; otherwise go to your own home page. (The API enforces roles too.) */
-const role = (r: string): CanActivateFn => () => {
+const role = (...allowed: string[]): CanActivateFn => () => {
   const auth = inject(AuthService);
   const router = inject(Router);
   if (!auth.token) return router.parseUrl('/login');
   const mine = auth.user()?.role;
-  return mine === r ? true : router.parseUrl(homeFor(mine));
+  return allowed.includes(mine ?? '') ? true : router.parseUrl(homeFor(mine));
 };
 
 export const routes: Routes = [
   { path: 'login', component: LoginComponent },
   { path: '', component: CaptureComponent, canActivate: [role('Engineer')] },
-  { path: 'admin', component: AdminComponent, canActivate: [role('Analyst')] },
+  { path: 'admin', component: AdminComponent, canActivate: [role('Analyst', 'Admin')] },
   { path: 'findings', component: FindingsComponent, canActivate: [signedIn] },
   { path: '**', redirectTo: '' },
 ];

@@ -13,8 +13,10 @@
 | 9 | Out-of-area warning | Save lat `25.0`, lon `80.0` in Block A | Accepted with ⚠ "outside the expedition's survey block" |
 | 10 | Possible duplicate | Save two findings ~2 m apart | Second one flagged ⚠ "possible duplicate" |
 | 11 | Unauthorized | Call `/api/sync/pull` without a token | 401 |
-| 12 | Wrong role | `GET /api/conflicts` as engineer1 | 403 |
+| 12 | Wrong role | `GET /api/conflicts` as engineer1; `POST /api/sync/push` as analyst1 | 403 for both |
 | 13 | Brute-force protection | Call login 11 times in a minute | 11th returns 429 |
 | 14 | GPS denied | Block location permission → tap GPS | Clear error message; manual entry still works |
 | 15 | Large backlog | Create 120 findings offline → go online | Sent in batches of 50; all synced |
 | 16 | Reload offline (PWA) | Production build → offline → reload | App shell loads; local data visible |
+| 17 | Admin edits data | Sign in as admin1 → Manage findings → add, edit, delete a finding | Each change syncs; engineer devices show the edit and drop the deleted finding |
+| 18 | Analyst is read-only | Sign in as analyst1 → dashboard | "All findings" list with no Add / Edit / Delete buttons |

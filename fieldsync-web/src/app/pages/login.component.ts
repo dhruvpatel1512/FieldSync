@@ -18,7 +18,7 @@ import { SyncService } from '../core/sync.service';
         @if (error()) { <p class="error">{{ error() }}</p> }
         <button type="submit" [disabled]="busy()">{{ busy() ? 'Signing in…' : 'Sign in' }}</button>
       </form>
-      <p class="muted small">Demo users: engineer1 / Field&#64;123 · analyst1 / Office&#64;123</p>
+      <p class="muted small">Demo users: engineer1 / Field&#64;123 · analyst1 / Office&#64;123 · admin1 / Admin&#64;123</p>
     </section>
   `,
 })

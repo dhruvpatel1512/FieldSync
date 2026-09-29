@@ -15,8 +15,14 @@ Exploration engineers record **where** they took a sample (GPS coordinates) and 
 - **Safe retries**: the device generates the record id, so re-sending the same batch after a dropped connection never creates duplicates.
 - **Conflict handling**: if two devices edit the same finding, the server keeps its copy and stores the other edit for an analyst to review. Nothing is silently overwritten.
 - **Data-quality checks**: flags locations outside the survey block, weak GPS fixes, unusual rock and hydrocarbon combinations, and possible duplicates within 5 m.
-- **Security**: JWT login with Engineer and Analyst roles, the engineer's name taken from the token rather than the device, server-side validation, a rate-limited login, and CORS allow-list.
-- **Admin dashboard** (Analyst role): totals and per-expedition breakdown, side-by-side conflict review with Keep server / Keep device, **add / edit / delete findings** (synced to every device like a field capture; the original engineer is kept), and a list of quality-flagged findings. Sign-in routes each role to its own home page.
+- **Security**: JWT login with Engineer, Analyst and Admin roles, the engineer's name taken from the token rather than the device, server-side validation, a rate-limited login, and CORS allow-list.
+- **Office dashboard**: totals and per-expedition breakdown, side-by-side conflict review with Keep server / Keep device, and a list of quality-flagged findings. Admins can also **add / edit / delete findings**, synced to every device like a field capture (the original engineer is kept). Sign-in routes each role to its own home page.
+
+  | Role | Capture | Dashboard + conflict review | Add / edit / delete |
+  |---|---|---|---|
+  | Engineer | ✓ | | |
+  | Analyst | | ✓ | |
+  | Admin | | ✓ | ✓ |
 - **Map view** of findings coloured by hydrocarbon indicator. Installable **PWA** that loads with no network.
 
 ## Tech stack
@@ -66,15 +72,15 @@ Prefer Docker? `docker compose up -d`, then run the API with
 
 > The JWT key and demo passwords in `appsettings.json` are for **local development only**. Production would keep secrets in a secret store (Azure Key Vault / user-secrets) and use hashed passwords or Microsoft Entra ID.
 
-Demo users: `engineer1 / Field@123`, `engineer2 / Field@123`, `analyst1 / Office@123`.
+Demo users: `engineer1 / Field@123`, `engineer2 / Field@123`, `analyst1 / Office@123`, `admin1 / Admin@123`.
 
 **Try the offline demo:** sign in, open DevTools, go to Network, set it to **Offline**, save 3 findings, then switch back to **No throttling** and watch them sync.
 
 ## Tests
 Manual QA checklist: [docs/test-plan.md](docs/test-plan.md).
 ```bash
-dotnet test backend/FieldSync.sln          # 12 API tests: idempotency, conflicts, admin edits and deletes, validation, malformed batches, auth, quality checks
-cd e2e && npm install && npx playwright test   # offline capture -> auto sync; analyst resolves a conflict and adds/edits/deletes on the dashboard
+dotnet test backend/FieldSync.sln          # 14 API tests: idempotency, conflicts, admin edits and deletes, validation, malformed batches, auth and role rules, quality checks
+cd e2e && npm install && npx playwright test   # offline capture -> auto sync; analyst resolves a conflict; admin adds/edits/deletes on the dashboard
 ```
 
 ## What I would add next

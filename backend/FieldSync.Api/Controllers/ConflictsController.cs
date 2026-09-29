@@ -9,7 +9,7 @@ namespace FieldSync.Api.Controllers;
 
 [ApiController]
 [Route("api/conflicts")]
-[Authorize(Roles = "Analyst")]
+[Authorize(Roles = "Analyst,Admin")]
 public class ConflictsController(AppDbContext db, SyncService sync) : ControllerBase
 {
     [HttpGet]
