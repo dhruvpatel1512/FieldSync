@@ -23,6 +23,26 @@ jobs:
       - uses: actions/upload-pages-artifact@v5
         with: { path: fieldsync-web/dist/fieldsync-web/browser }
 
+  # Deploys the API to https://fieldsync-api-dp.azurewebsites.net on every push to main (after tests pass).
+  # OIDC login as a managed identity trusted only for this repo's main branch: no Azure secret stored in GitHub.
+  api:
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    needs: [backend, frontend]
+    runs-on: ubuntu-latest
+    permissions: { id-token: write, contents: read }
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-dotnet@v5
+        with: { dotnet-version: '8.0.x' }
+      - run: dotnet publish backend/FieldSync.Api -c Release -o api-out
+      - uses: azure/login@v3
+        with:
+          client-id: ${{ vars.AZURE_CLIENT_ID }}
+          tenant-id: ${{ vars.AZURE_TENANT_ID }}
+          subscription-id: ${{ vars.AZURE_SUBSCRIPTION_ID }}
+      - uses: azure/webapps-deploy@v3
+        with: { app-name: fieldsync-api-dp, package: api-out }
+
   # Publishes the web app to https://dhruvpatel1512.github.io/FieldSync/ on every push to main (after tests pass)
   pages:
     if: github.event_name == 'push' && github.ref == 'refs/heads/main'

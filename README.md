@@ -81,7 +81,7 @@ Demo users: `engineer1 / Field@123`, `engineer2 / Field@123`, `analyst1 / Office
 
 ## Deployment
 - **Web app:** GitHub Pages, published by the `pages` job in `.github/workflows/ci.yml` on every push to `main` once tests pass.
-- **API + database:** Azure App Service (F1, Linux) and Azure SQL (free serverless offer, auto-pauses instead of billing). Production secrets (connection string, JWT key) and the CORS origin are App Service settings, not in the repo. The API applies EF migrations on startup.
+- **API + database:** deployed by the `api` job in the same workflow (GitHub OIDC login as a managed identity allowed to deploy only this web app, so no Azure secret lives in GitHub). Azure App Service (F1, Linux) and Azure SQL (free serverless offer, auto-pauses instead of billing). Production secrets (connection string, JWT key) and the CORS origin are App Service settings, not in the repo. The API applies EF migrations on startup.
 
 ## Tests
 Manual QA checklist: [docs/test-plan.md](docs/test-plan.md).
