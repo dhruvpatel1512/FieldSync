@@ -10,7 +10,8 @@ Exploration engineers record **where** they took a sample (GPS coordinates) and 
 > Portfolio project inspired by field-data work during my internship at ONGC. It is not affiliated with ONGC and uses **synthetic data only**.
 > The same pattern applies to any field crew that works in poor coverage: utilities, road inspection, forestry, environmental sampling.
 
-<!-- Add a screenshot or GIF here: docs/demo.gif -->
+[![FieldSync admin dashboard: totals, per-expedition breakdown and a side-by-side sync conflict](docs/demo.png)](https://dhruvpatel1512.github.io/FieldSync/)
+*Live admin dashboard: seeded demo data, quality flags and a two-device conflict waiting for review.*
 
 ## Features
 - **Offline capture**: form plus device GPS (GPS works without network). Data lands in IndexedDB instantly.
