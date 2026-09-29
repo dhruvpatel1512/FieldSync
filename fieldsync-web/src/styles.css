@@ -25,4 +25,9 @@ th, td { text-align:left; padding:8px 6px; border-bottom:1px solid var(--line); 
 .badge.conflict { background:#fee2e2; color:#991b1b; } .badge.rejected { background:#fee2e2; color:#991b1b; }
 .banner { background:#fef3c7; color:#92400e; padding:8px 16px; text-align:center; }
 .muted { color:var(--muted); } .small { font-size:12px; } .error { color:var(--err); } .warn { color:var(--warn); } .ok { color:var(--ok); }
+.stats { display:grid; grid-template-columns:repeat(auto-fit,minmax(120px,1fr)); gap:12px; }
+.stats div { border:1px solid var(--line); border-radius:8px; padding:12px; } .stats b { display:block; font-size:28px; } .stats span { color:var(--muted); font-size:13px; }
+.stats .alert { border-color:var(--err); color:var(--err); }
+.conflict { border:1px solid var(--line); border-radius:8px; padding:12px; margin-bottom:12px; } .conflict button { margin-right:8px; }
+tr.diff td { background:#fef3c7; font-weight:600; }
 @media (max-width:600px) { .row { grid-template-columns:1fr; } }

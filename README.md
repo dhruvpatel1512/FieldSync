@@ -16,6 +16,7 @@ Exploration engineers record **where** they took a sample (GPS coordinates) and 
 - **Conflict handling**: if two devices edit the same finding, the server keeps its copy and stores the other edit for an analyst to review. Nothing is silently overwritten.
 - **Data-quality checks**: flags locations outside the survey block, weak GPS fixes, unusual rock and hydrocarbon combinations, and possible duplicates within 5 m.
 - **Security**: JWT login with Engineer and Analyst roles, the engineer's name taken from the token rather than the device, server-side validation, a rate-limited login, and CORS allow-list.
+- **Admin dashboard** (Analyst role): totals and per-expedition breakdown, side-by-side conflict review with Keep server / Keep device, and a list of quality-flagged findings. Sign-in routes each role to its own home page.
 - **Map view** of findings coloured by hydrocarbon indicator. Installable **PWA** that loads with no network.
 
 ## Tech stack
@@ -73,8 +74,8 @@ Demo users: `engineer1 / Field@123`, `engineer2 / Field@123`, `analyst1 / Office
 Manual QA checklist: [docs/test-plan.md](docs/test-plan.md).
 ```bash
 dotnet test backend/FieldSync.sln          # 9 API tests: idempotency, conflicts, validation, auth, quality checks
-cd e2e && npm install && npx playwright test   # browser goes offline, captures, reconnects, verifies sync
+cd e2e && npm install && npx playwright test   # offline capture -> auto sync; analyst resolves a conflict on the dashboard
 ```
 
 ## What I would add next
-Capacitor Android build · conflict-review screen · photo upload after text sync · SQL Server `rowversion` for multi-server scaling · refresh tokens · AI suggestion of material type from field notes.
+Capacitor Android build · photo upload after text sync · SQL Server `rowversion` for multi-server scaling · refresh tokens · AI suggestion of material type from field notes.

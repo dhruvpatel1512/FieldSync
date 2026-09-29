@@ -1,7 +1,7 @@
 import { Component, inject, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { Router } from '@angular/router';
-import { AuthService } from '../core/auth.service';
+import { AuthService, homeFor } from '../core/auth.service';
 import { SyncService } from '../core/sync.service';
 
 @Component({
@@ -37,7 +37,7 @@ export class LoginComponent {
     try {
       await this.auth.login(this.username, this.password);
       this.sync.syncNow();
-      this.router.navigateByUrl('/');
+      this.router.navigateByUrl(homeFor(this.auth.user()?.role));
     } catch (e: any) {
       this.error.set(e?.status === 401 ? 'Wrong username or password' : 'Cannot reach server: you need network to sign in the first time');
     } finally {
