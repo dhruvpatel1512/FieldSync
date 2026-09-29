@@ -158,7 +158,7 @@ public class SyncService(AppDbContext db, QualityChecker quality)
         f.HydrocarbonIndicator = d.HydrocarbonIndicator;
         f.DepthM = d.DepthM;
         f.Notes = d.Notes?.Trim() ?? "";
-        f.EngineerName = userName;          // from the signed-in token, not from the device
+        if (f.EngineerName == "") f.EngineerName = userName;   // capturer, from the token; later edits (e.g. by an analyst) keep it
         f.DeviceId = deviceId;
         f.CapturedAt = d.CapturedAt;
         f.ClientUpdatedAt = d.ClientUpdatedAt;

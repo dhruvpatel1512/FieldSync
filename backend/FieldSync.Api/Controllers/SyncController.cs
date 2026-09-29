@@ -13,9 +13,10 @@ public class SyncController(SyncService sync) : ControllerBase
 {
     public const int MaxBatch = 200;
 
-    /// <summary>Device sends its pending records. Safe to call repeatedly with the same data.</summary>
+    /// <summary>Device sends its pending records. Safe to call repeatedly with the same data.
+    /// Analysts push too: that's how dashboard edits and deletions reach every device.</summary>
     [HttpPost("push")]
-    [Authorize(Roles = "Engineer")]
+    [Authorize(Roles = "Engineer,Analyst")]
     public async Task<ActionResult<PushResponse>> Push(PushRequest req)
     {
         if (string.IsNullOrWhiteSpace(req.DeviceId) || req.DeviceId.Length > 64)

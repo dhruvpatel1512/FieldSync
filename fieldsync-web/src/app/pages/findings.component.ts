@@ -47,7 +47,7 @@ const COLORS: Record<string, string> = { None: '#64748b', OilShow: '#b45309', Ga
 export class FindingsComponent implements AfterViewInit, OnDestroy {
   @ViewChild('map') mapEl!: ElementRef<HTMLDivElement>;
   readonly findings = toSignal(
-    from(liveQuery(() => db.findings.orderBy('capturedAt').reverse().toArray())), { initialValue: [] });
+    from(liveQuery(() => db.findings.orderBy('capturedAt').reverse().filter(f => !f.isDeleted).toArray())), { initialValue: [] });
 
   private map?: L.Map;
   private layer = L.layerGroup();

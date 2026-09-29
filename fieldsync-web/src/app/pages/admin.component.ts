@@ -1,13 +1,17 @@
 import { Component, OnInit, computed, inject, signal } from '@angular/core';
 import { DatePipe } from '@angular/common';
+import { FormsModule } from '@angular/forms';
 import { HttpClient } from '@angular/common/http';
 import { toSignal } from '@angular/core/rxjs-interop';
 import { firstValueFrom, from } from 'rxjs';
 import { liveQuery } from 'dexie';
 import { API_BASE } from '../core/config';
-import { db } from '../core/db';
-import { Finding } from '../core/models';
+import { db, getDeviceId } from '../core/db';
+import { Finding, MATERIAL_TYPES } from '../core/models';
 import { SyncService } from '../core/sync.service';
+import { AuthService } from '../core/auth.service';
+
+type FindingFields = Pick<Finding, 'expeditionId' | 'latitude' | 'longitude' | 'materialType' | 'depthM' | 'hydrocarbonIndicator' | 'notes'>;
 
 interface Conflict {
   id: number;
@@ -40,7 +44,7 @@ function fromPayload(json: string): Partial<Finding> {
 @Component({
   selector: 'app-admin',
   standalone: true,
-  imports: [DatePipe],
+  imports: [DatePipe, FormsModule],
   template: `
     <section class="card">
       <h2>Admin dashboard</h2>
@@ -97,6 +101,66 @@ function fromPayload(json: string): Partial<Finding> {
     </section>
 
     <section class="card">
+      <h3>Manage findings <button class="small-btn" (click)="startAdd()" [disabled]="editing() !== null">+ Add finding</button></h3>
+      @if (editing(); as id) {
+        <form #form="ngForm" class="edit" (ngSubmit)="save(id)">
+          <h4>{{ id === 'new' ? 'Add finding' : 'Edit finding' }}</h4>
+          <div class="row">
+            <label>Expedition
+              <select name="exp" [(ngModel)]="draft.expeditionId" required>
+                @for (e of expeditions(); track e.id) { <option [ngValue]="e.id">{{ e.name }}</option> }
+              </select>
+            </label>
+            <label>Material type
+              <select name="mat" [(ngModel)]="draft.materialType" required>
+                @for (m of materials; track m) { <option [value]="m">{{ m }}</option> }
+              </select>
+            </label>
+          </div>
+          <div class="row">
+            <label>Latitude <input name="lat" type="number" step="0.000001" min="-90" max="90" [(ngModel)]="draft.latitude" required></label>
+            <label>Longitude <input name="lon" type="number" step="0.000001" min="-180" max="180" [(ngModel)]="draft.longitude" required></label>
+          </div>
+          <div class="row">
+            <label>Depth (m) <input name="depth" type="number" min="0" max="10000" step="0.1" [(ngModel)]="draft.depthM" required></label>
+            <label>Hydrocarbon indicator
+              <select name="hc" [(ngModel)]="draft.hydrocarbonIndicator">
+                <option value="None">None</option><option value="OilShow">Oil show</option><option value="GasShow">Gas show</option>
+              </select>
+            </label>
+          </div>
+          <label>Field notes <textarea name="notes" rows="2" maxlength="2000" [(ngModel)]="draft.notes"></textarea></label>
+          <button type="submit" [disabled]="form.invalid">Save</button>
+          <button type="button" class="secondary" (click)="editing.set(null)">Cancel</button>
+        </form>
+      }
+      <table>
+        <thead><tr><th>Captured</th><th>Expedition</th><th>Location</th><th>Material</th><th>Depth</th><th>Indicator</th><th>Engineer</th><th>Status</th><th></th></tr></thead>
+        <tbody>
+          @for (f of all(); track f.id) {
+            <tr data-testid="manage-row">
+              <td>{{ f.capturedAt | date:'MMM d, HH:mm' }}</td>
+              <td>{{ expeditionName(f.expeditionId) }}</td>
+              <td>{{ f.latitude }}, {{ f.longitude }}</td>
+              <td>{{ f.materialType }}</td><td>{{ f.depthM }} m</td><td>{{ f.hydrocarbonIndicator }}</td>
+              <td>{{ f.engineerName }}</td>
+              <td>
+                <span class="badge {{ f.syncStatus }}">{{ f.syncStatus }}</span>
+                @for (e of f.syncErrors ?? []; track e) { <div class="error small">{{ e }}</div> }
+              </td>
+              <td class="actions">
+                <button class="small-btn secondary" (click)="startEdit(f)" [disabled]="editing() !== null">Edit</button>
+                <button class="small-btn danger" (click)="remove(f)">Delete</button>
+              </td>
+            </tr>
+          } @empty {
+            <tr><td colspan="9" class="muted">No findings yet.</td></tr>
+          }
+        </tbody>
+      </table>
+    </section>
+
+    <section class="card">
       <h3>Flagged findings</h3>
       <table>
         <thead><tr><th>Captured</th><th>Engineer</th><th>Material</th><th>Flags</th></tr></thead>
@@ -117,11 +181,12 @@ function fromPayload(json: string): Partial<Finding> {
 export class AdminComponent implements OnInit {
   private http = inject(HttpClient);
   private sync = inject(SyncService);
+  private auth = inject(AuthService);
   readonly fields = FIELDS;
 
   private readonly findings = toSignal(
     from(liveQuery(() => db.findings.filter(f => !f.isDeleted).toArray())), { initialValue: [] as Finding[] });
-  private readonly expeditions = toSignal(from(liveQuery(() => db.expeditions.toArray())), { initialValue: [] });
+  readonly expeditions = toSignal(from(liveQuery(() => db.expeditions.toArray())), { initialValue: [] });
 
   readonly conflicts = signal<Conflict[]>([]);
   readonly busy = signal(false);
@@ -137,7 +202,49 @@ export class AdminComponent implements OnInit {
     return this.conflicts().map(c => ({ ...c, server: byId.get(c.findingId), device: fromPayload(c.clientPayloadJson) }));
   });
 
+  readonly all = computed(() => [...this.findings()].sort((a, b) => b.capturedAt.localeCompare(a.capturedAt)));
+  readonly materials = MATERIAL_TYPES;
+  readonly editing = signal<'new' | string | null>(null);   // 'new' or the id being edited
+  draft = {} as FindingFields;
+
   ngOnInit() { this.load(); }
+
+  expeditionName(id: number) { return this.expeditions().find(e => e.id === id)?.name ?? `#${id}`; }
+
+  startAdd() {
+    this.draft = { expeditionId: this.expeditions()[0]?.id, materialType: 'Sandstone', hydrocarbonIndicator: 'None', notes: '' } as FindingFields;
+    this.editing.set('new');
+  }
+
+  startEdit(f: Finding) {
+    const { expeditionId, latitude, longitude, materialType, depthM, hydrocarbonIndicator, notes } = f;
+    this.draft = { expeditionId, latitude, longitude, materialType, depthM, hydrocarbonIndicator, notes };
+    this.editing.set(f.id);
+  }
+
+  /** Same path as a field capture: write locally as 'pending', then sync. The server versions it and every device pulls it. */
+  async save(id: string) {
+    const now = new Date().toISOString();
+    const fields = { ...this.draft, notes: (this.draft.notes ?? '').trim() };
+    if (id === 'new') {
+      await db.findings.add({
+        ...fields, id: crypto.randomUUID(), gpsAccuracyM: null,
+        engineerName: this.auth.user()?.displayName ?? 'unknown', deviceId: await getDeviceId(),
+        capturedAt: now, clientUpdatedAt: now, baseServerVersion: null, serverVersion: null, isDeleted: false, syncStatus: 'pending',
+      });
+    } else {
+      await db.findings.update(id, { ...fields, clientUpdatedAt: now, syncStatus: 'pending', syncErrors: [] });
+    }
+    this.editing.set(null);
+    this.sync.syncNow();
+  }
+
+  /** Soft delete: syncs as a tombstone so the finding disappears from every device too. */
+  async remove(f: Finding) {
+    if (!confirm(`Delete this ${f.materialType} finding at ${f.depthM} m? It is removed from every device on the next sync.`)) return;
+    await db.findings.update(f.id, { isDeleted: true, clientUpdatedAt: new Date().toISOString(), syncStatus: 'pending' });
+    this.sync.syncNow();
+  }
 
   async load() {
     try {

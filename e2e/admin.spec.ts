@@ -40,3 +40,44 @@ test('analyst resolves a sync conflict from the admin dashboard', async ({ page,
   await page.goto('/admin');
   await expect(page).not.toHaveURL(/\/admin$/);
 });
+
+// Scenario: the analyst adds, edits and deletes a finding from the dashboard; each change syncs to the server.
+test('analyst adds, edits and deletes a finding from the dashboard', async ({ page, request }) => {
+  const { token } = await (await request.post(`${API}/auth/login`, { data: { username: 'analyst1', password: 'Office@123' } })).json();
+  const onServer = async (notes: string) => {
+    const { findings } = await (await request.get(`${API}/sync/pull?since=0`, { headers: { Authorization: `Bearer ${token}` } })).json();
+    return findings.find((f: any) => f.notes === notes);
+  };
+  const notes = `e2e admin ${Date.now()}`;
+
+  await page.goto('/login');
+  await page.getByLabel('Username').fill('analyst1');
+  await page.getByLabel('Password').fill('Office@123');
+  await page.getByRole('button', { name: 'Sign in' }).click();
+  await expect(page).toHaveURL(/\/admin$/);
+
+  // Add
+  await page.getByRole('button', { name: '+ Add finding' }).click();
+  await page.getByLabel('Latitude').fill('22.95');
+  await page.getByLabel('Longitude').fill('72.95');
+  await page.getByLabel('Depth (m)').fill('12');
+  await page.getByLabel('Field notes').fill(notes);
+  await page.getByRole('button', { name: 'Save' }).click();
+  const row = page.getByTestId('manage-row').filter({ hasText: '22.95, 72.95' });
+  await expect(row.locator('.badge')).toHaveText('synced');
+  expect((await onServer(notes)).depthM).toBe(12);
+
+  // Edit
+  await row.getByRole('button', { name: 'Edit' }).click();
+  await page.getByLabel('Depth (m)').fill('34');
+  await page.getByRole('button', { name: 'Save' }).click();
+  await expect(row).toContainText('34 m');
+  await expect(row.locator('.badge')).toHaveText('synced');
+  expect((await onServer(notes)).depthM).toBe(34);
+
+  // Delete (confirm dialog)
+  page.once('dialog', d => d.accept());
+  await row.getByRole('button', { name: 'Delete' }).click();
+  await expect(row).toHaveCount(0);
+  await expect.poll(async () => (await onServer(notes))?.isDeleted).toBe(true);
+});

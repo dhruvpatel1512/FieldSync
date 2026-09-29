@@ -30,4 +30,7 @@ th, td { text-align:left; padding:8px 6px; border-bottom:1px solid var(--line); 
 .stats .alert { border-color:var(--err); color:var(--err); }
 .conflict { border:1px solid var(--line); border-radius:8px; padding:12px; margin-bottom:12px; } .conflict button { margin-right:8px; }
 tr.diff td { background:#fef3c7; font-weight:600; }
+.small-btn { padding:4px 10px; margin:0 4px 0 0; font-size:13px; } button.danger { background:var(--err); }
+.actions { white-space:nowrap; } .edit { border:1px solid var(--line); border-radius:8px; padding:12px; margin-bottom:12px; } .edit button { margin-right:8px; }
+h3 .small-btn { margin-left:8px; vertical-align:middle; }
 @media (max-width:600px) { .row { grid-template-columns:1fr; } }
