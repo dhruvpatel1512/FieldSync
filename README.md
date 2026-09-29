@@ -83,6 +83,8 @@ Demo users: `engineer1 / Field@123`, `engineer2 / Field@123`, `analyst1 / Office
 - **Web app:** GitHub Pages, published by the `pages` job in `.github/workflows/ci.yml` on every push to `main` once tests pass.
 - **API + database:** deployed by the `api` job in the same workflow (GitHub OIDC login as a managed identity allowed to deploy only this web app, so no Azure secret lives in GitHub). Azure App Service (F1, Linux) and Azure SQL (free serverless offer, auto-pauses instead of billing). Production secrets (connection string, JWT key) and the CORS origin are App Service settings, not in the repo. The API applies EF migrations on startup.
 
+- **Demo data:** `./scripts/seed-demo.ps1` pushes 18 synthetic findings (4 quality-flagged) and one open conflict through the live API; add `-Api http://localhost:5080/api` to seed a local copy. Handy after someone clears the public demo.
+
 ## Tests
 Manual QA checklist: [docs/test-plan.md](docs/test-plan.md).
 ```bash
