@@ -1,0 +1,13 @@
+services:
+  sqlserver:
+    image: mcr.microsoft.com/mssql/server:2022-latest
+    container_name: fieldsync-sql
+    environment:
+      ACCEPT_EULA: "Y"
+      MSSQL_SA_PASSWORD: "FieldSync_Dev_2026!"
+    ports:
+      - "1433:1433"
+    volumes:
+      - fieldsync-sql-data:/var/opt/mssql
+volumes:
+  fieldsync-sql-data:

@@ -1,0 +1,16 @@
+# .NET
+bin/
+obj/
+*.user
+.vs/
+# Node / Angular
+node_modules/
+dist/
+.angular/
+# Playwright
+test-results/
+playwright-report/
+# OS
+.DS_Store
+# Local build guide (not published)
+BUILD_GUIDE.md
