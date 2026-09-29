@@ -32,7 +32,6 @@ import { AuthService } from './core/auth.service';
     <main><router-outlet /></main>
     <footer class="muted small">
       Last sync: {{ sync.lastSyncAt() ? (sync.lastSyncAt() | date:'medium') : 'never' }}
-      · Portfolio project inspired by field-data work during my ONGC internship. Synthetic data only.
     </footer>
   `,
 })
