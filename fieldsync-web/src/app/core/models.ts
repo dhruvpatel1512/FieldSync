@@ -37,6 +37,9 @@ export interface Finding {
   qualityFlags?: string[];
 }
 
+/** The fields a person types in; everything else on a Finding is sync bookkeeping. */
+export type FindingFields = Pick<Finding, 'expeditionId' | 'latitude' | 'longitude' | 'materialType' | 'depthM' | 'hydrocarbonIndicator' | 'notes'>;
+
 export interface PushResult {
   id: string;
   status: 'accepted' | 'duplicate' | 'conflict' | 'rejected';

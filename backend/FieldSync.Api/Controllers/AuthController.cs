@@ -11,7 +11,8 @@ public class AuthController(IConfiguration config, TokenService tokens) : Contro
 {
     private record DemoUser(string Username, string Password, string DisplayName, string Role);
 
-    /// <summary>Demo login. Users live in appsettings.json. In production, use hashed passwords or Microsoft Entra ID.</summary>
+    /// <summary>Demo login against the users in appsettings.json.</summary>
+    // ponytail: plain-text demo passwords in config; switch to ASP.NET Identity (hashed) or Microsoft Entra ID before real users.
     [HttpPost("login")]
     [EnableRateLimiting("login")]   // slows down password guessing
     public ActionResult<LoginResponse> Login(LoginRequest req)

@@ -1,5 +1,5 @@
 import Dexie, { Table } from 'dexie';
-import { Expedition, Finding } from './models';
+import { Expedition, Finding, FindingFields } from './models';
 
 interface Meta { key: string; value: string; }
 
@@ -36,4 +36,13 @@ export async function getDeviceId(): Promise<string> {
     await db.setMeta('deviceId', id);
   }
   return id;
+}
+
+/** Save a brand-new finding locally as 'pending' (the outbox). The device generates the id, so this works offline. */
+export async function addFinding(fields: FindingFields, engineerName: string, gpsAccuracyM: number | null = null): Promise<void> {
+  const now = new Date().toISOString();
+  await db.findings.add({
+    ...fields, notes: fields.notes.trim(), id: crypto.randomUUID(), gpsAccuracyM, engineerName, deviceId: await getDeviceId(),
+    capturedAt: now, clientUpdatedAt: now, baseServerVersion: null, serverVersion: null, isDeleted: false, syncStatus: 'pending',
+  });
 }

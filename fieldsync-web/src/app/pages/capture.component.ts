@@ -3,8 +3,8 @@ import { FormsModule, NgForm } from '@angular/forms';
 import { liveQuery } from 'dexie';
 import { from } from 'rxjs';
 import { toSignal } from '@angular/core/rxjs-interop';
-import { db, getDeviceId } from '../core/db';
-import { Finding, HydrocarbonIndicator, MATERIAL_TYPES } from '../core/models';
+import { addFinding, db } from '../core/db';
+import { HydrocarbonIndicator, MATERIAL_TYPES } from '../core/models';
 import { AuthService } from '../core/auth.service';
 import { SyncService } from '../core/sync.service';
 
@@ -97,27 +97,10 @@ export class CaptureComponent {
 
   async save(form: NgForm) {
     this.saving.set(true);
-    const now = new Date().toISOString();
-    const finding: Finding = {
-      id: crypto.randomUUID(),
-      expeditionId: this.expeditionId!,
-      latitude: this.latitude!,
-      longitude: this.longitude!,
-      gpsAccuracyM: this.accuracy(),
-      materialType: this.materialType,
-      hydrocarbonIndicator: this.hydrocarbon,
-      depthM: this.depthM!,
-      notes: this.notes.trim(),
-      engineerName: this.auth.user()?.displayName ?? 'unknown',
-      deviceId: await getDeviceId(),
-      capturedAt: now,
-      clientUpdatedAt: now,
-      baseServerVersion: null,
-      serverVersion: null,
-      isDeleted: false,
-      syncStatus: 'pending',
-    };
-    await db.findings.add(finding);           // 1) saved locally: never lost, even with no network
+    await addFinding({                          // 1) saved locally: never lost, even with no network
+      expeditionId: this.expeditionId!, latitude: this.latitude!, longitude: this.longitude!, materialType: this.materialType,
+      depthM: this.depthM!, hydrocarbonIndicator: this.hydrocarbon, notes: this.notes,
+    }, this.auth.user()?.displayName ?? 'unknown', this.accuracy());
     // Clear the form for the next sample but keep the expedition selected
     form.resetForm({ exp: this.expeditionId, mat: 'Sandstone', hc: 'None', notes: '' });
     this.saving.set(false);

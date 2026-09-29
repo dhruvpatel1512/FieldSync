@@ -6,12 +6,10 @@ import { toSignal } from '@angular/core/rxjs-interop';
 import { firstValueFrom, from } from 'rxjs';
 import { liveQuery } from 'dexie';
 import { API_BASE } from '../core/config';
-import { db, getDeviceId } from '../core/db';
-import { Finding, MATERIAL_TYPES } from '../core/models';
+import { addFinding, db } from '../core/db';
+import { Finding, FindingFields, MATERIAL_TYPES } from '../core/models';
 import { SyncService } from '../core/sync.service';
 import { AuthService } from '../core/auth.service';
-
-type FindingFields = Pick<Finding, 'expeditionId' | 'latitude' | 'longitude' | 'materialType' | 'depthM' | 'hydrocarbonIndicator' | 'notes'>;
 
 interface Conflict {
   id: number;
@@ -30,15 +28,6 @@ const FIELDS: { label: string; key: keyof Finding }[] = [
   { label: 'Longitude', key: 'longitude' },
   { label: 'Notes', key: 'notes' },
 ];
-
-/** The server stores the device edit with .NET's default JSON: PascalCase keys, enum as a number. */
-function fromPayload(json: string): Partial<Finding> {
-  const p = JSON.parse(json);
-  return {
-    materialType: p.MaterialType, depthM: p.DepthM, latitude: p.Latitude, longitude: p.Longitude, notes: p.Notes,
-    hydrocarbonIndicator: (['None', 'OilShow', 'GasShow'] as const)[p.HydrocarbonIndicator] ?? p.HydrocarbonIndicator,
-  };
-}
 
 /** Office view for Analysts (review) and Admins (review + add / edit / delete). Stats come from the local DB (the analyst's device pulls every finding); conflicts need network. */
 @Component({
@@ -139,7 +128,7 @@ function fromPayload(json: string): Partial<Finding> {
       <table>
         <thead><tr><th>Captured</th><th>Expedition</th><th>Location</th><th>Material</th><th>Depth</th><th>Indicator</th><th>Engineer</th><th>Status</th>@if (canEdit()) { <th></th> }</tr></thead>
         <tbody>
-          @for (f of all(); track f.id) {
+          @for (f of findings(); track f.id) {
             <tr data-testid="manage-row">
               <td>{{ f.capturedAt | date:'MMM d, HH:mm' }}</td>
               <td>{{ expeditionName(f.expeditionId) }}</td>
@@ -189,8 +178,9 @@ export class AdminComponent implements OnInit {
   readonly fields = FIELDS;
   readonly canEdit = computed(() => this.auth.user()?.role === 'Admin');   // the API enforces this too
 
-  private readonly findings = toSignal(
-    from(liveQuery(() => db.findings.filter(f => !f.isDeleted).toArray())), { initialValue: [] as Finding[] });
+  /** Newest first, deleted ones hidden. */
+  readonly findings = toSignal(
+    from(liveQuery(() => db.findings.orderBy('capturedAt').reverse().filter(f => !f.isDeleted).toArray())), { initialValue: [] as Finding[] });
   readonly expeditions = toSignal(from(liveQuery(() => db.expeditions.toArray())), { initialValue: [] });
 
   readonly conflicts = signal<Conflict[]>([]);
@@ -201,13 +191,12 @@ export class AdminComponent implements OnInit {
   readonly byExpedition = computed(() =>
     this.expeditions().map(e => ({ ...e, ...summarize(this.findings().filter(f => f.expeditionId === e.id)) })));
   readonly flagged = computed(() =>
-    this.findings().filter(f => f.qualityFlags?.length).sort((a, b) => b.capturedAt.localeCompare(a.capturedAt)).slice(0, 20));
+    this.findings().filter(f => f.qualityFlags?.length).slice(0, 20));
   readonly review = computed(() => {
     const byId = new Map(this.findings().map(f => [f.id, f]));
-    return this.conflicts().map(c => ({ ...c, server: byId.get(c.findingId), device: fromPayload(c.clientPayloadJson) }));
+    return this.conflicts().map(c => ({ ...c, server: byId.get(c.findingId), device: JSON.parse(c.clientPayloadJson) as Partial<Finding> }));
   });
 
-  readonly all = computed(() => [...this.findings()].sort((a, b) => b.capturedAt.localeCompare(a.capturedAt)));
   readonly materials = MATERIAL_TYPES;
   readonly editing = signal<'new' | string | null>(null);   // 'new' or the id being edited
   draft = {} as FindingFields;
@@ -229,17 +218,8 @@ export class AdminComponent implements OnInit {
 
   /** Same path as a field capture: write locally as 'pending', then sync. The server versions it and every device pulls it. */
   async save(id: string) {
-    const now = new Date().toISOString();
-    const fields = { ...this.draft, notes: (this.draft.notes ?? '').trim() };
-    if (id === 'new') {
-      await db.findings.add({
-        ...fields, id: crypto.randomUUID(), gpsAccuracyM: null,
-        engineerName: this.auth.user()?.displayName ?? 'unknown', deviceId: await getDeviceId(),
-        capturedAt: now, clientUpdatedAt: now, baseServerVersion: null, serverVersion: null, isDeleted: false, syncStatus: 'pending',
-      });
-    } else {
-      await db.findings.update(id, { ...fields, clientUpdatedAt: now, syncStatus: 'pending', syncErrors: [] });
-    }
+    if (id === 'new') await addFinding(this.draft, this.auth.user()?.displayName ?? 'unknown');
+    else await db.findings.update(id, { ...this.draft, notes: this.draft.notes.trim(), clientUpdatedAt: new Date().toISOString(), syncStatus: 'pending', syncErrors: [] });
     this.editing.set(null);
     this.sync.syncNow();
   }

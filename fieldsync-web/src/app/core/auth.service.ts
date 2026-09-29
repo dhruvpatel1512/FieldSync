@@ -10,6 +10,7 @@ export const homeFor = (role?: string) => (role === 'Analyst' || role === 'Admin
 
 const TOKEN_KEY = 'fs_token';
 const USER_KEY = 'fs_user';
+const EXP_KEY = 'fs_exp';
 
 @Injectable({ providedIn: 'root' })
 export class AuthService {
@@ -20,7 +21,7 @@ export class AuthService {
     const t = localStorage.getItem(TOKEN_KEY);
     if (!t) return null;
     // Drop expired tokens so we don't send them
-    const exp = localStorage.getItem('fs_exp');
+    const exp = localStorage.getItem(EXP_KEY);
     if (exp && new Date(exp) < new Date()) { this.logout(); return null; }
     return t;
   }
@@ -30,7 +31,7 @@ export class AuthService {
     const res = await firstValueFrom(
       this.http.post<LoginResponse>(`${API_BASE}/auth/login`, { username, password }));
     localStorage.setItem(TOKEN_KEY, res.token);
-    localStorage.setItem('fs_exp', res.expiresAt);
+    localStorage.setItem(EXP_KEY, res.expiresAt);
     const user = { displayName: res.displayName, role: res.role };
     localStorage.setItem(USER_KEY, JSON.stringify(user));
     this.user.set(user);
@@ -38,7 +39,7 @@ export class AuthService {
 
   logout(): void {
     localStorage.removeItem(TOKEN_KEY);
-    localStorage.removeItem('fs_exp');
+    localStorage.removeItem(EXP_KEY);
     localStorage.removeItem(USER_KEY);
     this.user.set(null);
   }

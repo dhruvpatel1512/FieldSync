@@ -149,12 +149,20 @@ public class SyncTests : IClassFixture<ApiFactory>
         Assert.All(pulled.Findings, x => Assert.True(x.ServerVersion > a));
     }
 
-    [Fact]
-    public async Task Requests_without_a_token_are_refused()
+    [Theory]
+    [InlineData("/api/sync/pull")]
+    [InlineData("/api/expeditions")]
+    public async Task Requests_without_a_token_are_refused(string url)
     {
-        var anonymous = _factory.CreateClient();
-        var res = await anonymous.GetAsync("/api/sync/pull");
+        var res = await _factory.CreateClient().GetAsync(url);
         Assert.Equal(HttpStatusCode.Unauthorized, res.StatusCode);
+    }
+
+    [Fact]
+    public async Task Signed_in_users_get_the_seeded_expeditions()
+    {
+        var list = await _engineer.GetFromJsonAsync<List<Expedition>>("/api/expeditions", Json);
+        Assert.Equal(["Block A Onshore Survey", "Block B Shelf Survey"], list!.Select(e => e.Name));
     }
 
     [Fact]

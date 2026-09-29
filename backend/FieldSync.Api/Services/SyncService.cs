@@ -1,4 +1,5 @@
 using System.Text.Json;
+using System.Text.Json.Serialization;
 using FieldSync.Api.Data;
 using FieldSync.Api.Dtos;
 using FieldSync.Api.Models;
@@ -10,9 +11,24 @@ public class SyncService(AppDbContext db, QualityChecker quality)
 {
     public const int PullPageSize = 500;
 
-    // One push at a time on this server, so version numbers are committed in order
-    // and a device pulling "since X" can never skip a record. (Single-instance demo.)
+    // Same JSON shape the API speaks (camelCase, enum names), so the dashboard can show a stored edit as-is.
+    // Also reads older PascalCase / numeric-enum payloads.
+    private static readonly JsonSerializerOptions PayloadJson = new(JsonSerializerDefaults.Web) { Converters = { new JsonStringEnumConverter() } };
+
+    // One push at a time, so version numbers are committed in order and a device pulling "since X" can never skip a record.
+    // ponytail: process-wide gate, one API instance only; use SQL Server rowversion + MIN_ACTIVE_ROWVERSION() to run several.
     private static readonly SemaphoreSlim PushGate = new(1, 1);
+
+    // Strictly increasing versions: Unix ms x 1000 + counter, kept below 2^53 so JavaScript numbers hold them exactly.
+    // ponytail: in-process clock, one API instance only; use a SQL Server SEQUENCE when scaling out.
+    private static long _lastVersion;
+    private static readonly object VersionLock = new();
+
+    private static long NextVersion()
+    {
+        lock (VersionLock)
+            return _lastVersion = Math.Max(DateTimeOffset.UtcNow.ToUnixTimeMilliseconds() * 1000, _lastVersion + 1);
+    }
 
     public async Task<PushResponse> PushAsync(PushRequest req, string userName)
     {
@@ -65,7 +81,7 @@ public class SyncService(AppDbContext db, QualityChecker quality)
                     db.SyncConflicts.Add(new SyncConflict
                     {
                         FindingId = dto.Id, DeviceId = req.DeviceId, SubmittedBy = userName,
-                        ClientPayloadJson = JsonSerializer.Serialize(dto), DetectedAt = DateTimeOffset.UtcNow,
+                        ClientPayloadJson = JsonSerializer.Serialize(dto, PayloadJson), DetectedAt = DateTimeOffset.UtcNow,
                     });
                     existing.HasConflict = true;
                     response.Results.Add(new PushResult { Id = dto.Id, Status = "conflict", ServerVersion = existing.ServerVersion });
@@ -105,17 +121,17 @@ public class SyncService(AppDbContext db, QualityChecker quality)
     /// <summary>Reviewer decision: keep the server copy, or apply the device's edit.</summary>
     public async Task<bool> ResolveConflictAsync(int conflictId, bool keepClient, string reviewer)
     {
-        var c = await db.SyncConflicts.FindAsync(conflictId);
-        if (c is null || c.Resolved) return false;
-        var f = await db.Findings.FindAsync(c.FindingId);
-        if (f is null) return false;
-
-        await PushGate.WaitAsync();
+        await PushGate.WaitAsync();   // check and resolve under the gate, so two reviewers can't resolve the same conflict
         try
         {
+            var c = await db.SyncConflicts.FindAsync(conflictId);
+            if (c is null || c.Resolved) return false;
+            var f = await db.Findings.FindAsync(c.FindingId);
+            if (f is null) return false;
+
             if (keepClient)
             {
-                var dto = JsonSerializer.Deserialize<FindingDto>(c.ClientPayloadJson)!;
+                var dto = JsonSerializer.Deserialize<FindingDto>(c.ClientPayloadJson, PayloadJson)!;
                 Apply(dto, f, c.DeviceId, c.SubmittedBy);
             }
             c.Resolved = true;
@@ -167,7 +183,7 @@ public class SyncService(AppDbContext db, QualityChecker quality)
 
     private async Task StampAsync(Finding f)
     {
-        f.ServerVersion = VersionClock.Next();
+        f.ServerVersion = NextVersion();
         f.ServerUpdatedAt = DateTimeOffset.UtcNow;
         f.QualityFlags = string.Join(';', await quality.CheckAsync(f));
     }

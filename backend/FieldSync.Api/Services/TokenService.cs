@@ -10,7 +10,8 @@ public class TokenService(IConfiguration config)
     public (string Token, DateTimeOffset ExpiresAt) Create(string username, string displayName, string role)
     {
         var jwt = config.GetSection("Jwt");
-        // Long-lived on purpose: engineers may be off-network for days. In production add refresh tokens + revocation.
+        // Long-lived on purpose: engineers may be off-network for days.
+        // ponytail: no refresh or revocation, a stolen token works until expiry; add refresh tokens + a revocation list before production.
         var expires = DateTimeOffset.UtcNow.AddDays(jwt.GetValue("DaysValid", 7));
         var key = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(jwt["Key"]!));
         var token = new JwtSecurityToken(
