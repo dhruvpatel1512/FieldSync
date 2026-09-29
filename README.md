@@ -2,6 +2,9 @@
 
 ![CI](https://github.com/dhruvpatel1512/FieldSync/actions/workflows/ci.yml/badge.svg)
 
+**Live demo:** https://dhruvpatel1512.github.io/FieldSync/ · sign in as `engineer1 / Field@123`, `analyst1 / Office@123` or `admin1 / Admin@123`.
+The API runs on Azure free tiers (App Service F1 + Azure SQL serverless), so the first request after a quiet spell can take ~30 s while it wakes up.
+
 Exploration engineers record **where** they took a sample (GPS coordinates) and **what** they found (rock type, depth, oil or gas shows), often in places with **no mobile signal**. FieldSync saves every finding on the device first and **syncs automatically when the network comes back**, with no duplicates and no lost edits.
 
 > Portfolio project inspired by field-data work during my internship at ONGC. It is not affiliated with ONGC and uses **synthetic data only**.
@@ -75,6 +78,10 @@ Prefer Docker? `docker compose up -d`, then run the API with
 Demo users: `engineer1 / Field@123`, `engineer2 / Field@123`, `analyst1 / Office@123`, `admin1 / Admin@123`.
 
 **Try the offline demo:** sign in, open DevTools, go to Network, set it to **Offline**, save 3 findings, then switch back to **No throttling** and watch them sync.
+
+## Deployment
+- **Web app:** GitHub Pages, published by the `pages` job in `.github/workflows/ci.yml` on every push to `main` once tests pass.
+- **API + database:** Azure App Service (F1, Linux) and Azure SQL (free serverless offer, auto-pauses instead of billing). Production secrets (connection string, JWT key) and the CORS origin are App Service settings, not in the repo. The API applies EF migrations on startup.
 
 ## Tests
 Manual QA checklist: [docs/test-plan.md](docs/test-plan.md).

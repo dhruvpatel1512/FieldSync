@@ -18,4 +18,18 @@ jobs:
       - uses: actions/setup-node@v5
         with: { node-version: '22', cache: 'npm', cache-dependency-path: fieldsync-web/package-lock.json }
       - run: npm ci
-      - run: npx ng build
+      - run: npx ng build --base-href /FieldSync/
+      - run: cp dist/fieldsync-web/browser/index.html dist/fieldsync-web/browser/404.html   # GitHub Pages serves this for deep links like /admin
+      - uses: actions/upload-pages-artifact@v5
+        with: { path: fieldsync-web/dist/fieldsync-web/browser }
+
+  # Publishes the web app to https://dhruvpatel1512.github.io/FieldSync/ on every push to main (after tests pass)
+  pages:
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    needs: [backend, frontend]
+    runs-on: ubuntu-latest
+    permissions: { pages: write, id-token: write }
+    environment: { name: github-pages, url: '${{ steps.deploy.outputs.page_url }}' }
+    steps:
+      - id: deploy
+        uses: actions/deploy-pages@v5

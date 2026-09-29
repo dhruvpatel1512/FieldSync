@@ -12,7 +12,7 @@ var builder = WebApplication.CreateBuilder(args);
 
 // ---------- Database ----------
 builder.Services.AddDbContext<AppDbContext>(o =>
-    o.UseSqlServer(builder.Configuration.GetConnectionString("Default")));
+    o.UseSqlServer(builder.Configuration.GetConnectionString("Default"), sql => sql.EnableRetryOnFailure()));   // Azure SQL serverless wakes from pause
 
 // ---------- App services ----------
 builder.Services.AddScoped<QualityChecker>();
