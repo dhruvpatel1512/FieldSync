@@ -23,6 +23,8 @@ public class SyncController(SyncService sync) : ControllerBase
             return BadRequest("DeviceId is required (max 64 characters)");
         if (req.Findings.Count > MaxBatch)
             return BadRequest($"Send at most {MaxBatch} findings per batch");
+        if (req.Findings.Contains(null!))
+            return BadRequest("Findings must not contain null entries");
 
         var user = User.FindFirstValue(ClaimTypes.Name) ?? "unknown";
         return await sync.PushAsync(req, user);

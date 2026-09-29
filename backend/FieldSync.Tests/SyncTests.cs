@@ -177,6 +177,15 @@ public class SyncTests : IClassFixture<ApiFactory>
         Assert.Equal("Field Engineer 1", saved.EngineerName);             // not overwritten by the analyst
     }
 
+    [Theory]
+    [InlineData("""{ "deviceId": "device-A", "findings": [null] }""")]
+    [InlineData("""{ "deviceId": "device-A", "findings": null }""")]
+    public async Task Malformed_batch_is_a_400_not_a_crash(string body)
+    {
+        var res = await _engineer.PostAsync("/api/sync/push", new StringContent(body, System.Text.Encoding.UTF8, "application/json"));
+        Assert.Equal(HttpStatusCode.BadRequest, res.StatusCode);
+    }
+
     [Fact]
     public async Task Engineers_cannot_review_conflicts()
     {

@@ -73,7 +73,7 @@ Demo users: `engineer1 / Field@123`, `engineer2 / Field@123`, `analyst1 / Office
 ## Tests
 Manual QA checklist: [docs/test-plan.md](docs/test-plan.md).
 ```bash
-dotnet test backend/FieldSync.sln          # 10 API tests: idempotency, conflicts, admin edits and deletes, validation, auth, quality checks
+dotnet test backend/FieldSync.sln          # 12 API tests: idempotency, conflicts, admin edits and deletes, validation, malformed batches, auth, quality checks
 cd e2e && npm install && npx playwright test   # offline capture -> auto sync; analyst resolves a conflict and adds/edits/deletes on the dashboard
 ```
 
