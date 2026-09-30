@@ -92,6 +92,3 @@ Manual QA checklist: [docs/test-plan.md](docs/test-plan.md).
 dotnet test backend/FieldSync.sln          # 16 API tests: idempotency, conflicts, admin edits and deletes, validation, malformed batches, auth and role rules, quality checks
 cd e2e && npm install && npx playwright test   # offline capture -> auto sync; analyst resolves a conflict; admin adds/edits/deletes on the dashboard
 ```
-
-## What I would add next
-Capacitor Android build · photo upload after text sync · SQL Server `rowversion` for multi-server scaling · refresh tokens · AI suggestion of material type from field notes.
