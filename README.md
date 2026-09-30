@@ -86,6 +86,53 @@ Demo users: `engineer1 / Field@123`, `engineer2 / Field@123`, `analyst1 / Office
 
 - **Demo data:** `./scripts/seed-demo.ps1` pushes 18 synthetic findings (4 quality-flagged) and one open conflict through the live API; add `-Api http://localhost:5080/api` to seed a local copy. Handy after someone clears the public demo.
 
+### Set up your own Azure deployment
+Needs an Azure subscription and the [Azure CLI](https://learn.microsoft.com/cli/azure/install-azure-cli); everything below stays on free tiers. Run in bash (Git Bash on Windows) after `az login`.
+
+```bash
+RG=fieldsync-rg; LOC=canadacentral; SQL=fieldsync-sql-yourname; APP=fieldsync-api-yourname   # SQL and APP names must be globally unique
+REPO=your-github-user/FieldSync; ORIGIN=https://your-github-user.github.io
+SQL_USER=fieldsyncadmin; SQL_PASS="$(openssl rand -base64 24)Az9-"; JWT_KEY=$(openssl rand -base64 48)
+
+# 1. New subscriptions must register these providers once
+az provider register -n Microsoft.Sql --wait
+az provider register -n Microsoft.Web --wait
+
+# 2. Database: Azure SQL free serverless offer (pauses at the monthly free limit instead of billing)
+az group create -n $RG -l $LOC
+az sql server create -g $RG -n $SQL -l $LOC -u $SQL_USER -p "$SQL_PASS"
+az sql server firewall-rule create -g $RG -s $SQL -n AllowAzureServices --start-ip-address 0.0.0.0 --end-ip-address 0.0.0.0
+az sql db create -g $RG -s $SQL -n FieldSync -e GeneralPurpose -f Gen5 -c 2 --compute-model Serverless \
+  --use-free-limit --free-limit-exhaustion-behavior AutoPause --backup-storage-redundancy Local
+
+# 3. API host: App Service F1 (free). New subscriptions often have no F1 quota in some regions;
+#    if this fails with "Current Limit (F1 VMs): 0", try another -l (centralus worked here). The API may live in a different region than the DB.
+az appservice plan create -g $RG -n fieldsync-plan -l centralus --sku F1 --is-linux
+az webapp create -g $RG -p fieldsync-plan -n $APP --runtime 'DOTNETCORE:8.0'
+az webapp update -g $RG -n $APP --https-only true
+
+# 4. Production settings: secrets live here, never in the repo
+az webapp config appsettings set -g $RG -n $APP --settings \
+  "ConnectionStrings__Default=Server=tcp:$SQL.database.windows.net,1433;Database=FieldSync;User ID=$SQL_USER;Password=$SQL_PASS;Encrypt=True;Connection Timeout=60" \
+  "Jwt__Key=$JWT_KEY" "Cors__Origins__0=$ORIGIN" "Cors__Origins__1=$ORIGIN"
+
+# 5. CI deploy identity: a managed identity trusted only for this repo's main branch (works even where you can't register apps)
+az identity create -g $RG -n fieldsync-github-deploy
+IDS=$(gh api repos/$REPO --jq '"\(.owner.login)@\(.owner.id)/\(.name)@\(.id)"')   # GitHub's OIDC subject uses immutable IDs
+az identity federated-credential create -g $RG --identity-name fieldsync-github-deploy -n github-main \
+  --issuer https://token.actions.githubusercontent.com --subject "repo:$IDS:ref:refs/heads/main" --audiences api://AzureADTokenExchange
+az role assignment create --assignee-object-id $(az identity show -g $RG -n fieldsync-github-deploy --query principalId -o tsv) \
+  --assignee-principal-type ServicePrincipal --role 'Website Contributor' --scope $(az webapp show -g $RG -n $APP --query id -o tsv)
+
+# 6. GitHub: variables for the api job (IDs, not secrets) and Pages deployed from Actions
+gh variable set AZURE_CLIENT_ID --body $(az identity show -g $RG -n fieldsync-github-deploy --query clientId -o tsv) -R $REPO
+gh variable set AZURE_TENANT_ID --body $(az account show --query tenantId -o tsv) -R $REPO
+gh variable set AZURE_SUBSCRIPTION_ID --body $(az account show --query id -o tsv) -R $REPO
+gh api -X POST repos/$REPO/pages -f build_type=workflow
+```
+
+For a fork, also change the API URL in `fieldsync-web/src/app/core/config.ts` and `app-name` in the `api` job of `ci.yml`, then push to `main`: CI runs the tests, deploys the API (which creates the tables on first start) and publishes the site. If you ever recreate the GitHub repo, its ID changes, so update the step 5 federated credential with `az identity federated-credential update` and the new subject.
+
 ## Tests
 Manual QA checklist: [docs/test-plan.md](docs/test-plan.md).
 ```bash
