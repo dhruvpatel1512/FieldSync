@@ -2,7 +2,7 @@
 
 ![CI](https://github.com/dhruvpatel1512/FieldSync/actions/workflows/ci.yml/badge.svg)
 
-**Live demo:** https://dhruvpatel1512.github.io/FieldSync/ · sign in as `engineer1 / Field@123`, `analyst1 / Office@123` or `admin1 / Admin@123`.
+**Live demo:** https://dhruvpatel1512.github.io/FieldSync/login · sign in as `engineer1 / Field@123`, `analyst1 / Office@123` or `admin1 / Admin@123`.
 The API runs on Azure free tiers (App Service F1 + Azure SQL serverless), so the first request after a quiet spell can take ~30 s while it wakes up.
 
 Exploration engineers record **where** they took a sample (GPS coordinates) and **what** they found (rock type, depth, oil or gas shows), often in places with **no mobile signal**. FieldSync saves every finding on the device first and **syncs automatically when the network comes back**, with no duplicates and no lost edits.
